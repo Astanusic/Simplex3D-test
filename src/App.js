@@ -1,59 +1,59 @@
-import React, { useRef, useState, Suspense } from "react";
-import * as THREE from "three";
-import ReactDOM from "react-dom";
-import { Canvas, useFrame, useLoader } from "react-three-fiber";
-import { useSpring, a } from "react-spring/three";
-import { softShadows, MeshWobbleMaterial, OrbitControls, Sphere } from "drei";
-import "./App.css";
-import "./imageFadeMaterial";
-import img1 from "./assets/tokyo.jpg";
-import img2 from "./assets/australia.jpg";
-import disp from "./assets/displacement/displacement.jpg";
+import React, { useRef, useState, Suspense, useMemo } from "react";
 
-const SpinningMesh = () => {
-  const mesh = useRef(null);
-  const [texture1, texture2, dispTexture] = useLoader(THREE.TextureLoader, [
-    img1,
-    img2,
-    disp,
-  ]);
+import * as THREE from "three";
+import { Canvas, useFrame, useLoader, ambientLight } from "react-three-fiber";
+import { useSpring, a } from "react-spring/three";
+import { shaderMaterial } from "drei";
+
+import "./App.css";
+
+import vertex from "./vertex.glsl";
+import fragment from "./fragment.glsl";
+
+import img1 from "./assets/tokyo.jpg";
+
+const Plane = () => {
+  const ref = useRef();
   const [hovered, setHover] = useState(false);
-  useFrame(
-    () =>
-      (mesh.current.dispFactor = THREE.MathUtils.lerp(
-        mesh.current.dispFactor,
-        hovered ? 1 : 0,
-        0.1
-      ))
+  const clock = new THREE.Clock();
+  const [texture1] = useLoader(THREE.TextureLoader, [img1]);
+
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uTexture: { value: texture1 },
+    }),
+    []
   );
+
+  useFrame(() => (ref.current.uniforms.uTime.value = clock.getElapsedTime()));
+
   return (
-    <mesh
-      onPointerMove={(e) => setHover(true)}
-      onPointerOut={(e) => setHover(false)}
-      scale={[3, 3, 1]}
-    >
-      <planeBufferGeometry attach="geometry" args={[1.5, 2]} />
-      <imageFadeMaterial
-        ref={mesh}
+    <mesh>
+      <planeBufferGeometry attach="geometry" args={[0.4, 0.6, 16, 16]} />
+      <shaderMaterial
         attach="material"
-        tex={texture1}
-        tex2={texture2}
-        disp={dispTexture}
+        ref={ref}
+        args={[
+          {
+            uniforms,
+            vertexShader: vertex,
+            fragmentShader: fragment,
+          },
+        ]}
       />
     </mesh>
   );
 };
 
-const App = (props) => {
+const App = () => {
   return (
-    <>
-      <Canvas>
-        <ambientLight intensity={0.8} />
-        <Suspense fallback={null}>
-          <SpinningMesh />
-        </Suspense>
-      </Canvas>
-    </>
+    <Canvas colorManagement camera={{ position: [0, 0, 1], fov: 60 }}>
+      <ambientLight intensity={0.8} />
+      <Suspense fallback={null}>
+        <Plane />
+      </Suspense>
+    </Canvas>
   );
 };
 
